@@ -644,15 +644,14 @@ function stockRow(it) {
   }
   const l = levelOf(it), sp = spareOf(it);
   return h('div', { class: 'row ' + st }, h('span', { class: 'stripe' }), main,
-    h('div', { class: 'ctrl lvline' + (sp > 0 && l <= lowLvOf(it) ? ' has-open' : '') },
+    h('div', { class: 'ctrl lvline' },
       h('div', { class: 'gauge lv' + (sp > 0 ? ' has-spare' : ''), style: `--fill:${(l + 1) * 25}%;--gc:${LV_COLOR[l]}`, role: 'group', 'aria-label': it.name + 'の使用中の残量' },
         LV.map((lab, i) => h('button', { 'aria-pressed': String(i === l), 'aria-label': '残量 ' + LV_LONG[i], disabled: !canWrite, onclick: () => setLevel(it, i) }, lab))),
       h('div', { class: 'spare' }, '予備',
         h('div', { class: 'step' },
-          h('button', { 'aria-label': it.name + 'の予備を1減らす', disabled: !canWrite || sp === 0, onclick: () => bumpSpare(it, -1) }, '−'),
+          h('button', { 'aria-label': it.name + 'の予備を1つ開ける（残量が満になります）', disabled: !canWrite || sp === 0, onclick: () => openNew(it) }, '−'),
           h('span', { class: 'num' }, sp, h('small', {}, it.unit || '')),
-          h('button', { 'aria-label': it.name + 'の予備を1増やす', disabled: !canWrite, onclick: () => bumpSpare(it, 1) }, '+'))),
-      sp > 0 && l <= lowLvOf(it) ? h('button', { class: 'btn openbtn', disabled: !canWrite, onclick: () => openNew(it) }, '開けた') : null));
+          h('button', { 'aria-label': it.name + 'の予備を1増やす', disabled: !canWrite, onclick: () => bumpSpare(it, 1) }, '+')))));
 }
 function shortAmt(it) {
   return isLevel(it) ? `${LV_LONG[levelOf(it)]}・予備${spareOf(it)}` : `残り${stockOf(it)}`;
@@ -785,7 +784,7 @@ function homeKey() {
 }
 
 // ---------- 新しい版が公開されていたら自動で読み直す ----------
-const BUILD = '2026-11-02-6';
+const BUILD = '2026-11-02-7';
 async function checkUpdate() {
   try {
     const t = await (await fetch('./?u=' + Date.now(), { cache: 'no-store' })).text();
