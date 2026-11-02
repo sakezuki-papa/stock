@@ -777,7 +777,7 @@ function homeKey() {
 }
 
 // ---------- 新しい版が公開されていたら自動で読み直す ----------
-const BUILD = '2026-11-02-3';
+const BUILD = '2026-11-02-4';
 async function checkUpdate() {
   try {
     const t = await (await fetch('./?u=' + Date.now(), { cache: 'no-store' })).text();
@@ -803,7 +803,7 @@ render();
     myId = (cur || (await auth.signInAnonymously()).user).uid;
   } catch (e) { clearTimeout(timer); dbErr = e; loaded = true; render(); return; }
   db = { collection: n => fs.collection(`homes/${K}/${n}`), doc: p => fs.doc(`homes/${K}/${p}`) };
-  db.collection('items').onSnapshot(s => {
+  db.collection('items').onSnapshot({ includeMetadataChanges: true }, s => {
     items = s.docs.map(d => ({ id: d.id, ...d.data() }));
     loaded = true;
     if (!s.metadata.fromCache) { clearTimeout(timer); slow = false; }
