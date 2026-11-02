@@ -776,6 +776,17 @@ function homeKey() {
   catch (e) { return m ? m[1] : null; }
 }
 
+// ---------- 新しい版が公開されていたら自動で読み直す ----------
+const BUILD = '2026-11-02-3';
+async function checkUpdate() {
+  try {
+    const t = await (await fetch('./?u=' + Date.now(), { cache: 'no-store' })).text();
+    const m = t.match(/const BUILD = '([^']+)'/);
+    if (m && m[1] !== BUILD) location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]) + location.hash);
+  } catch (e) {}
+}
+checkUpdate();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkUpdate(); });
 window.addEventListener('hashchange', () => { if (/k=/.test(location.hash)) location.reload(); });
 render();
 (async () => {
