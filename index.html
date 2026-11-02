@@ -196,6 +196,12 @@ h1 { font-family: var(--f-display); font-size: 1.35rem; margin: 0; letter-spacin
 #stockList .lvline { gap: 6px; }
 #stockList .lvline .gauge { flex: 1 1 0; min-width: 0; }
 #stockList .lvline .gauge button { padding: 0; font-size: .78rem; height: 30px; }
+/* 残量ゲージ：選んだ段階まで色で塗り、選んだ文字だけ表示（他の段階は透明だが押せる） */
+#stockList .gauge.lv { position: relative; isolation: isolate; overflow: hidden; }
+#stockList .gauge.lv::before { content: ""; position: absolute; z-index: -1; left: 2px; top: 2px; bottom: 2px; width: calc(var(--fill) - 4px); border-radius: 999px; background: var(--gc); transition: width .2s ease, background-color .2s ease; }
+#stockList .gauge.lv.has-spare { background: #EAF6FB; border-color: #D3ECF6; }
+#stockList .gauge.lv button { background: none !important; color: transparent; }
+#stockList .gauge.lv button[aria-pressed="true"] { color: var(--fg); font-weight: 700; }
 #stockList .lvline .spare { flex: none; gap: 4px; font-size: .74rem; }
 /* 「開けた」が出る品目は、開けた・予備を小さくして1行に収める */
 #stockList .lvline.has-open { flex-wrap: nowrap; gap: 4px; }
@@ -298,6 +304,8 @@ const CATS = ['キッチン', '調味料他', '冷蔵庫', '食品', '洗面・�
 const UNITS = ['個', '本', 'ロール', '箱', '袋', 'パック', '枚', 'kg'];
 const LV = ['空', '少し', '半分', '満'];
 const LV_LONG = ['空', '少し', '半分', 'たっぷり'];
+// 残量ゲージの色（空=赤、少し=オレンジ、半分=黄、満=水色。文字を邪魔しない淡さ）
+const LV_COLOR = ['#F6CDC7', '#FADCC0', '#F8EBAE', '#C6E6F3'];
 // [名前, 場所, 単位, 管理方法] count=個数で管理 / level=量で管理（使用中の残量＋予備）
 const PRESETS = [
   ['トイレットペーパー', 'トイレ', 'ロール', 'count'], ['トイレ用洗剤', 'トイレ', '本', 'level'],
@@ -637,7 +645,7 @@ function stockRow(it) {
   const l = levelOf(it), sp = spareOf(it);
   return h('div', { class: 'row ' + st }, h('span', { class: 'stripe' }), main,
     h('div', { class: 'ctrl lvline' + (sp > 0 && l <= lowLvOf(it) ? ' has-open' : '') },
-      h('div', { class: 'gauge', role: 'group', 'aria-label': it.name + 'の使用中の残量' },
+      h('div', { class: 'gauge lv' + (sp > 0 ? ' has-spare' : ''), style: `--fill:${(l + 1) * 25}%;--gc:${LV_COLOR[l]}`, role: 'group', 'aria-label': it.name + 'の使用中の残量' },
         LV.map((lab, i) => h('button', { 'aria-pressed': String(i === l), 'aria-label': '残量 ' + LV_LONG[i], disabled: !canWrite, onclick: () => setLevel(it, i) }, lab))),
       h('div', { class: 'spare' }, '予備',
         h('div', { class: 'step' },
@@ -777,7 +785,7 @@ function homeKey() {
 }
 
 // ---------- 新しい版が公開されていたら自動で読み直す ----------
-const BUILD = '2026-11-02-5';
+const BUILD = '2026-11-02-6';
 async function checkUpdate() {
   try {
     const t = await (await fetch('./?u=' + Date.now(), { cache: 'no-store' })).text();
