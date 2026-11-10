@@ -216,6 +216,14 @@ h1 { font-family: var(--f-display); font-size: 1.35rem; margin: 0; letter-spacin
 #stockList .has-open .num small { font-size: .62rem; }
 #stockList .has-open .openbtn { flex: none; min-height: 28px; padding: 0 7px; font-size: .72rem; border-radius: 8px; }
 #shopList .sright { font-size: .74rem; }
+.xadd { display: flex; gap: 8px; align-items: center; }
+.xin { flex: 1; min-width: 0; height: 40px; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 0 12px; font-size: 16px; }
+.xin::placeholder { font-size: 12.5px; }
+.xbtn { flex: none; min-height: 40px; padding: 0 14px; font-size: .88rem; }
+#shopList .xrow { background: var(--surface); border-color: var(--line); }
+.xcheck { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--accent); background: var(--surface); padding: 0; }
+.xcheck:active { background: var(--accent-soft); }
+.xdel { border: 0; background: none; width: 32px; height: 32px; font-size: 1.1rem; color: var(--muted); padding: 0; }
 #shopList .sright .pill { font-size: .68rem; padding: 0 7px; }
 .log { display: grid; background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow); }
 .logrow { display: grid; grid-template-columns: 4.6em 1fr; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--line); font-size: .92rem; }
@@ -341,7 +349,7 @@ const CAT_ICON = { 'キッチン': '🍳', '調味料他': '🧂', '冷蔵庫': 
 const iconOf = it => (ICONS.find(([k]) => (it.name || '').includes(k)) || [0, CAT_ICON[catOf(it)] || '📦'])[1];
 
 let db = null, user = null, myId = null, canWrite = true;
-let items = [], events = [], loaded = false, slow = false, dbErr = null, noDb = false, noHome = false, askedName = false;
+let items = [], events = [], extras = [], loaded = false, slow = false, dbErr = null, noDb = false, noHome = false, askedName = false;
 let names = {};
 const pending = {}, orig = {}, timers = {}, chains = new Map();
 let tab = 'stock', query = '', buying = null, buyQty = 1;
@@ -712,6 +720,31 @@ function shopRow(it) {
       h('button', { class: 'btn', disabled: !canWrite, onclick: () => claim(it) }, it.buyer === myId ? '担当をやめる' : '私が買う'),
       manual ? h('button', { class: 'btn', disabled: !canWrite, onclick: () => toggleBuy(it) }, '外す') : null));
 }
+// ---------- ストック以外の買い物（ノート、夕飯の材料など） ----------
+function extraForm() {
+  const inp = h('input', { id: 'xName', class: 'xin', maxlength: '40', placeholder: '他に買う物（ノート、夕飯の材料…）', autocomplete: 'off', enterkeyhint: 'done', 'aria-label': 'ストック以外に買う物' });
+  return h('form', { class: 'xadd', onsubmit: async e => {
+    e.preventDefault();
+    const name = inp.value.trim(); if (!name || !guard()) return;
+    inp.value = '';
+    try { await db.collection('extras').add({ name, at: Date.now(), by: myId }); }
+    catch (err) { inp.value = name; fail(err); }
+  } }, inp, h('button', { class: 'btn primary xbtn', type: 'submit', disabled: !db }, '＋ 追加'));
+}
+function extraRow(x) {
+  return h('div', { class: 'srow xrow' },
+    h('div', { class: 'sline' },
+      h('span', { class: 'sleft' }, h('button', { class: 'xcheck', 'aria-label': `「${x.name}」を買った`, onclick: () => buyExtra(x) }), h('span', { class: 'sname' }, x.name)),
+      h('span', { class: 'sright' }, h('span', {}, who(x.by)), h('button', { class: 'xdel', 'aria-label': `「${x.name}」を消す`, onclick: () => delExtra(x) }, '×'))));
+}
+async function buyExtra(x) {
+  if (!guard()) return;
+  try { await db.doc('extras/' + x.id).delete(); log('buy', x.name, 'その他の買い物'); toast(`「${x.name}」を買いました`); } catch (e) { fail(e); }
+}
+async function delExtra(x) {
+  if (!guard()) return;
+  try { await db.doc('extras/' + x.id).delete(); toast(`「${x.name}」を消しました`); } catch (e) { fail(e); }
+}
 const VERB = { buy: 'を買いました', count: 'を更新しました', open: 'の予備を開けました', add: 'を追加しました', edit: 'を編集しました', del: 'を削除しました' };
 function logText(e) {
   if (e.kind === 'flag' || e.kind === 'claim') return `${who(e.by)}：「${e.item}」${e.detail}`;
@@ -732,7 +765,8 @@ function render() {
   const shop = sorted.filter(needsBuy).sort((a, b) => ORDER[status(a)] - ORDER[status(b)]);
 
   for (const b of document.querySelectorAll('#tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === tab));
-  const badge = $('#badge'); badge.hidden = !shop.length; badge.textContent = shop.length;
+  const nBuy = shop.length + extras.length;
+  const badge = $('#badge'); badge.hidden = !nBuy; badge.textContent = nBuy;
   $('#view-stock').hidden = tab !== 'stock'; $('#view-shop').hidden = tab !== 'shop';
   $('#addBtn').disabled = !canWrite || !db;
   $('#setBtn').disabled = !db || !myId;
@@ -766,9 +800,16 @@ function render() {
   // 買い物：場所ごと
   const sh = $('#shopList');
   if (!loaded) sh.replaceChildren();
-  else if (!shop.length) sh.replaceChildren(h('div', { class: 'empty' }, h('h3', {}, '今は買う物はありません'), h('p', {}, '補充の基準を下回った品目がここに並びます。')));
-  else sh.replaceChildren(
-    ...byCat(shop).map(([c, ls]) => groupBlock(c, null, ls.map(shopRow))));
+  else {
+    const blocks = [extraForm()];
+    if (extras.length) blocks.push(groupBlock('その他の買い物', null, extras.map(extraRow)));
+    blocks.push(...byCat(shop).map(([c, ls]) => groupBlock(c, null, ls.map(shopRow))));
+    if (!shop.length && !extras.length) blocks.push(h('div', { class: 'empty' }, h('h3', {}, '今は買う物はありません'), h('p', {}, '補充の基準を下回った品目と、上の欄で追加した物がここに並びます。')));
+    // 入力中の文字とフォーカスを保つ
+    const old = $('#xName'), keep = old ? { v: old.value, f: document.activeElement === old } : null;
+    sh.replaceChildren(...blocks);
+    if (keep) { $('#xName').value = keep.v; if (keep.f) $('#xName').focus(); }
+  }
 
   // 履歴
   const ll = $('#logList');
@@ -812,7 +853,7 @@ function homeKey() {
 }
 
 // ---------- 新しい版が公開されていたら自動で読み直す ----------
-const BUILD = '2026-11-02-8';
+const BUILD = '2026-11-10-1';
 async function checkUpdate() {
   try {
     const t = await (await fetch('./?u=' + Date.now(), { cache: 'no-store' })).text();
@@ -846,6 +887,10 @@ render();
   }, e => { clearTimeout(timer); dbErr = e; loaded = true; render(); });
   db.collection('events').orderBy('at', 'desc').limit(60).onSnapshot(s => {
     events = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, () => {});
+  db.collection('extras').orderBy('at').onSnapshot(s => {
+    extras = s.docs.map(d => ({ id: d.id, ...d.data() }));
     render();
   }, () => {});
   db.collection('members').onSnapshot(s => {
