@@ -79,6 +79,17 @@ h1 { font-family: var(--f-display); font-size: 1.35rem; margin: 0; letter-spacin
 .setbtn { width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--accent); display: grid; place-items: center; padding: 0; }
 .setbtn svg { width: 22px; height: 22px; }
 .setbtn:disabled { opacity: .4; }
+html, body { overflow-x: hidden; }
+@media (max-width: 374px) {
+  header { gap: 6px; }
+  .logo { gap: 5px; }
+  .logo .mark { width: 44px; height: 44px; }
+  .logo .word .big { font-size: 1.4rem; }
+  .logo .word small { font-size: .62rem; padding: 1px 7px 2px; }
+  .hbtns { gap: 6px; }
+  .setbtn { width: 40px; height: 40px; }
+  .addbtn { height: 40px; padding: 0 12px; font-size: .9rem; }
+}
 
 .banner { border-radius: var(--r); padding: 10px 14px; font-size: .9rem; background: var(--low-soft); }
 .banner.info { background: var(--accent-soft); }
@@ -216,10 +227,12 @@ h1 { font-family: var(--f-display); font-size: 1.35rem; margin: 0; letter-spacin
 #stockList .has-open .num small { font-size: .62rem; }
 #stockList .has-open .openbtn { flex: none; min-height: 28px; padding: 0 7px; font-size: .72rem; border-radius: 8px; }
 #shopList .sright { font-size: .74rem; }
-.xadd { display: flex; gap: 8px; align-items: center; }
-.xin { flex: 1; min-width: 0; height: 40px; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 0 12px; font-size: 16px; }
+#shopList { grid-template-columns: minmax(0, 1fr); }
+.xadd { display: flex; gap: 8px; align-items: center; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.xin { flex: 1 1 0; width: 0; min-width: 0; box-sizing: border-box; -webkit-appearance: none; appearance: none; height: 40px; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 0 12px; font-size: 16px; }
 .xin::placeholder { font-size: 12.5px; }
-.xbtn { flex: none; min-height: 40px; padding: 0 14px; font-size: .88rem; }
+.xbtn { flex: none; min-height: 40px; padding: 0 14px; font-size: .88rem; white-space: nowrap; }
+#shopList .xbtn { background: #E2593F; border-color: #E2593F; color: #fff; }
 #shopList .xrow { background: var(--surface); border-color: var(--line); }
 .xcheck { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--accent); background: var(--surface); padding: 0; }
 .xcheck:active { background: var(--accent-soft); }
@@ -722,7 +735,7 @@ function shopRow(it) {
 }
 // ---------- ストック以外の買い物（ノート、夕飯の材料など） ----------
 function extraForm() {
-  const inp = h('input', { id: 'xName', class: 'xin', maxlength: '40', placeholder: '他に買う物（ノート、夕飯の材料…）', autocomplete: 'off', enterkeyhint: 'done', 'aria-label': 'ストック以外に買う物' });
+  const inp = h('input', { id: 'xName', class: 'xin', maxlength: '40', placeholder: '例：ノート、夕飯の材料', autocomplete: 'off', enterkeyhint: 'done', 'aria-label': 'ストック以外に買う物' });
   return h('form', { class: 'xadd', onsubmit: async e => {
     e.preventDefault();
     const name = inp.value.trim(); if (!name || !guard()) return;
@@ -853,7 +866,7 @@ function homeKey() {
 }
 
 // ---------- 新しい版が公開されていたら自動で読み直す ----------
-const BUILD = '2026-11-10-1';
+const BUILD = '2026-11-10-3';
 async function checkUpdate() {
   try {
     const t = await (await fetch('./?u=' + Date.now(), { cache: 'no-store' })).text();
